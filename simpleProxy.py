@@ -29,4 +29,4 @@ if __name__ == '__main__':
     data = get_all_proxy()
     with open("README.md", "w") as fh:
         for proxyItem in data:
-            fh.write(proxyItem + "\n")
+            fh.write(proxyItem + "<br />\n")
