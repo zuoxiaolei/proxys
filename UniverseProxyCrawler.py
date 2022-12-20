@@ -56,6 +56,22 @@ class UniverseProxyCrawler(object):
         else:
             return NOTIP
 
+    def valid_ip(self, proxy_item):
+        http_prefix = "http://"
+        validate_center = "http://httpbin.org/ip"
+        try:
+            ip, port = proxy_item.split(":")
+            proxy = {'http': http_prefix + proxy_item,
+                     'https': http_prefix + proxy_item}
+            response = requests.get(validate_center, proxies=proxy,
+                                    timeout=2, headers=self.headers)
+            if response.status_code == 200:
+                html = response.text
+                return ip in html
+        except requests.exceptions.RequestException as e:
+            return False
+        return False
+
     def get_html(self, url, params={}):
         res = requests.get(url,
                            headers=self.headers,
@@ -88,34 +104,43 @@ class UniverseProxyCrawler(object):
 
     def get_table_data(self, url):
         res = self.get_html(url)
-        soup = BeautifulSoup(res.text)
+        soup = BeautifulSoup(res.text, 'html5lib')
         page_type = self.detect_page_type(res.text)
         if page_type == IPWITHPORT:
             return re.findall(self.ip_port_regex, res.text)
         elif page_type == IPPORTSEP:
-            pass
-        else:
-            return []
-
-        if self.validate_page(str(soup)):
-            tables = list(soup.find_all("table"))
+            tables = soup.find_all("table")
+            proxy_list = []
             if tables:
                 for table in tables:
-                    if self.validate_page(str(table)):
-                        pass
-                    else:
-                        pass
+                    if table and self.validate_page(str(table)):
+                        trs = table.find_all_next("tr")
+                        if trs:
+                            for tr in trs:
+                                tds = list(tr.find_all_next("td"))
+                                if tds:
+                                    ip, port = "", ""
+                                    for td in tds:
+                                        ip_match = re.search(self.ip_regex, td.get_text())
+                                        port_match = re.search(self.port_regex, td.get_text())
+                                        if ip_match:
+                                            ip = ip_match.string
+                                        if port_match:
+                                            port = port_match.string
+                                    if ip and port:
+                                        proxy_list.append(ip + ":" + port)
+                return proxy_list
             else:
-                pass
-        return []
+                return []
 
-    def get_api_data(self):
-        pass
+        def get_api_data(self):
+            pass
 
 
 if __name__ == '__main__':
     up = UniverseProxyCrawler()
-    print(up.detect_page_type("176.196.48"))
+    print(up.get_table_data("https://proxyhub.me/en/dz-free-proxy-list.html"))
+    # print(up.get_table_data("176.196.48"))
     # page_urls = up.get_proxy_urls()
     # print(len(page_urls))
     # for url in page_urls:
