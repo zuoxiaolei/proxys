@@ -1,11 +1,13 @@
+import concurrent.futures
 import re
 
 import requests
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-from pprint import pprint
-import uuid
+import pandas as pd
+
+import config
 
 
 def is_validate_url(href):
@@ -14,13 +16,21 @@ def is_validate_url(href):
     return False
 
 
+def parse_file(url):
+    exist_proxy = pd.read_csv(url)
+    proxys = exist_proxy.iloc[:, 0].tolist()
+    proxys = [ele.strip() for ele in proxys if ele.strip()]
+    print("finish read: {}".format(url))
+    return set(proxys)
+
+
 IPWITHPORT = "IPWITHPORT"
 IPPORTSEP = "IPPORTSEP"
 NOTIP = "NOTIP"
 
 
 class UniverseProxyCrawler(object):
-    def __init__(self, headers=None, proxies=None, num_task=48, num_page=10):
+    def __init__(self, headers=None, proxies=None, num_page=2, is_local=False):
         if headers:
             self.headers = headers
         else:
@@ -30,13 +40,16 @@ class UniverseProxyCrawler(object):
         if proxies:
             self.proxies = proxies
         else:
-            self.proxies = {"http": "http://127.0.0.1:58591",
-                            "https": "http://127.0.0.1:58591"}
-        self.num_task = num_task
+            if is_local:
+                self.proxies = {"http": "http://127.0.0.1:58591",
+                                "https": "http://127.0.0.1:58591"}
+            else:
+                self.proxies = {}
         self.num_page = num_page
-        self.ip_regex = "((2[0-4]\d|25[0-5]|[01]?\d\d?)\.){3}(2[0-4]\d|25[0-5]|[01]?\d\d?)"
-        self.port_regex = "([0-9]|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
-        self.ip_port_regex = "((2[0-4]\d|25[0-5]|[01]?\d\d?)\.){3}(2[0-4]\d|25[0-5]|[01]?\d\d?)\:([0-9]|[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
+        self.max_task_num = 1000
+        self.ip_regex = "(?:(?:2[0-4]\d|25[0-5]|[01]?\d\d?)\.){3}(?:2[0-4]\d|25[0-5]|[01]?\d\d?)"
+        self.port_regex = "^(?:[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])$"
+        self.ip_port_regex = "(?:(?:2[0-4]\d|25[0-5]|[01]?\d\d?)\.){3}(?:2[0-4]\d|25[0-5]|[01]?\d\d?)\:(?:[1-9]\d{1,3}|[1-5]\d{4}|6[0-4]\d{4}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])"
 
     def is_ip_validate(self, ip):
         return bool(re.search(self.ip_regex, ip))
@@ -51,7 +64,7 @@ class UniverseProxyCrawler(object):
     def detect_page_type(self, text):
         if bool(re.search(self.ip_port_regex, text)):
             return IPWITHPORT
-        elif bool(re.search(self.ip_regex, text)) and bool(re.search(self.port_regex, text)):
+        elif bool(re.search(self.ip_regex, text)):
             return IPPORTSEP
         else:
             return NOTIP
@@ -76,13 +89,14 @@ class UniverseProxyCrawler(object):
         res = requests.get(url,
                            headers=self.headers,
                            params=params,
-                           proxies=self.proxies)
+                           proxies=self.proxies
+                           )
         return res
 
-    def get_google_search_page(self, page_id):
+    def get_google_search_page(self, page_id, search_keyword):
         page_url_set = set()
-        params = {"q": "free https proxy list", "start": str(page_id * 10)}
-        res = self.get_html("https://www.google.com/search", params=params)
+        params = {"q": search_keyword, "start": str(page_id * 10)}
+        res = self.get_html(config.google_search_url, params=params)
         soup = BeautifulSoup(res.text, 'html5lib')
         for a in soup.find_all("a"):
             href = a.get("href")
@@ -94,19 +108,35 @@ class UniverseProxyCrawler(object):
         '''
         multi thread get each page url of google search result
         '''
-        with ThreadPoolExecutor(self.num_task) as executor:
+        from itertools import product
+        grid_params = list(product(range(self.num_page), config.search_keywords))
+        with ThreadPoolExecutor(self.num_page) as executor:
             page_url_set_array = list(
-                tqdm(executor.map(self.get_google_search_page, range(self.num_page)), total=self.num_page))
+                tqdm(executor.map(lambda x: self.get_google_search_page(*x), grid_params), total=len(grid_params)))
         page_urls = set()
         for element in page_url_set_array:
             page_urls = page_urls.union(element)
         return page_urls
 
+    def handle_error(func):
+        def decorate(*args, **kwargs):
+            try:
+                res = func(*args, **kwargs)
+                return res
+            except Exception as e:
+                import traceback
+                # traceback.print_exc()
+                return []
+
+        return decorate
+
+    @handle_error
     def get_table_data(self, url):
         res = self.get_html(url)
         soup = BeautifulSoup(res.text, 'html5lib')
         page_type = self.detect_page_type(res.text)
         if page_type == IPWITHPORT:
+            print(url)
             return re.findall(self.ip_port_regex, res.text)
         elif page_type == IPPORTSEP:
             tables = soup.find_all("table")
@@ -117,32 +147,81 @@ class UniverseProxyCrawler(object):
                         trs = table.find_all_next("tr")
                         if trs:
                             for tr in trs:
-                                tds = list(tr.find_all_next("td"))
+                                tds = list(tr.find_all("td"))
                                 if tds:
                                     ip, port = "", ""
                                     for td in tds:
-                                        ip_match = re.search(self.ip_regex, td.get_text())
-                                        port_match = re.search(self.port_regex, td.get_text())
+                                        td_str = td.get_text().strip()
+                                        td_str = re.sub("\s", "", td_str)
+                                        ip_match = re.search(self.ip_regex, td_str)
+                                        port_match = re.search(self.port_regex, td_str)
                                         if ip_match:
-                                            ip = ip_match.string
+                                            ip = ip_match.group()
                                         if port_match:
-                                            port = port_match.string
+                                            port = port_match.group()
                                     if ip and port:
                                         proxy_list.append(ip + ":" + port)
+                print(url)
                 return proxy_list
             else:
+                print(url)
                 return []
 
-        def get_api_data(self):
-            pass
+    def get_api_data(self,
+                     url="https://proxylist.geonode.com/api/proxy-list?limit=500&page=1&sort_by=lastChecked&sort_type=desc"):
+        res = self.get_html(url)
+        json = res.json()
+        data = json['data']
+        return [element["ip"] + ":" + element["port"] for element in data]
+
+    def get_github_proxy(self):
+        pass
+
+    def get_google_proxy(self):
+        page_urls = self.get_proxy_urls()
+        with ThreadPoolExecutor(len(page_urls)) as executor:
+            page_url_set_array = list(
+                tqdm(executor.map(self.get_table_data, page_urls), total=len(page_urls)))
+        return [ele for element in page_url_set_array if element for ele in element if ele]
+
+    def get_github_proxy(self):
+        '''获取github上的所有的代理
+        https://www.freeproxy.world/
+        :return:
+        '''
+        urls = config.github_urls
+        with ThreadPoolExecutor(len(urls)) as executor:
+            ip_address_list = list(executor.map(parse_file, urls))
+        ip_address_set = set()
+        for element in ip_address_list:
+            ip_address_set = ip_address_set.union(element)
+        print("get total {} proxy".format(len(ip_address_set)))
+        return ip_address_set
+
+    def validate_all_proxy(self, proxy_list):
+        '''验证ip池里面的所有ip
+        :param proxy_list:
+        :return:
+        '''
+        with ThreadPoolExecutor(self.max_task_num) as executor:
+            is_validate_list = list(executor.map(self.valid_ip, proxy_list))
+        valid_ip_address = [ele[1] for ele in zip(is_validate_list, proxy_list) if ele[0]]
+        return valid_ip_address
 
 
 if __name__ == '__main__':
-    up = UniverseProxyCrawler()
-    print(up.get_table_data("https://proxyhub.me/en/dz-free-proxy-list.html"))
-    # print(up.get_table_data("176.196.48"))
-    # page_urls = up.get_proxy_urls()
-    # print(len(page_urls))
-    # for url in page_urls:
-    #     print(url)
-    pass
+    import time
+
+    start_time = time.time()
+    up = UniverseProxyCrawler(is_local=True)
+    # proxy_list = (up.get_table_data("https://www.proxy-list.download/HTTP"))
+    # proxy_list = up.get_api_data()
+    proxy_list = up.get_google_proxy()
+    print(len(proxy_list))
+
+    with concurrent.futures.ThreadPoolExecutor(up.max_task_num) as executor:
+        res = executor.map(up.valid_ip, proxy_list)
+    for is_validate, proxy in zip(res, proxy_list):
+        if is_validate:
+            print(is_validate, proxy)
+    print(time.time() - start_time)

@@ -1,32 +1,14 @@
 import pandas as pd
-
-
-# def valid_ip(proxy_item):
-#     try:
-#         ip = proxy_item.split(":")[0]
-#         proxy = {'http': "http://" + proxy_item,
-#                  'https': "http://" + proxy_item}
-#         response = requests.get("https://httpbin.org/ip", proxies=proxy,
-#                                 timeout=2, headers=headers)
-#         if response.status_code == 200:
-#             html = response.text
-#             if ip in html:
-#                 return True, proxy_item
-#             return False, proxy_item
-#         else:
-#             return False, proxy_item
-#     except requests.exceptions.RequestException as e:
-#         return False, proxy_item
-
-
-def get_all_proxy():
-    exist_proxy = pd.read_csv("https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt")
-    exist_proxy = [ele[0] for ele in exist_proxy.values.tolist()]
-    return exist_proxy
-
+from UniverseProxyCrawler import UniverseProxyCrawler
+from datetime import datetime
 
 if __name__ == '__main__':
-    data = get_all_proxy()
+    up = UniverseProxyCrawler()
+    data = up.get_github_proxy()
+    data = up.validate_all_proxy(data)
+    now_str = datetime.now().strftime("%Y%m%d %H:%M:%S")
     with open("README.md", "w") as fh:
+        fh.write("# {} update {} http/https proxy\n```\n".format(now_str, len(data)))
         for proxyItem in data:
-            fh.write(proxyItem + "<br />\n")
+            fh.write(proxyItem + "\n")
+        fh.write("```")
