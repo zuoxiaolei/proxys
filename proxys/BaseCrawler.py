@@ -62,7 +62,8 @@ class BaseCrawlerConf:
                      ]
     wait_time = 60  # update proxy pool peer 10 minutes
     max_task_num = 1000
-    github_url = "https://ghproxy.com/https://raw.githubusercontent.com/zuoxiaolei/proxys/main/README.md"
+    github_url = "zuoxiaolei/proxys/main/proxys.txt"
+    github_url = github_prefix + github_url
 
 
 class BaseCrawler(BaseCrawlerConf):
@@ -72,9 +73,12 @@ class BaseCrawler(BaseCrawlerConf):
         self.start_proxy_pool()
         logging.info("get total {} http proxy".format(self.length))
 
-    def get_random_proxies(self):
+    def get_random_proxies(self, for_request=False):
         proxy = self.proxy_pool[random.randint(0, len(self.proxy_pool) - 1)]
-        return {'http': proxy, 'https': proxy}
+        if for_request:
+            return {'http': proxy, 'https': proxy}
+        else:
+            return proxy
 
     def get_useagent(self, with_cookie=True):
         headers = {
@@ -216,3 +220,5 @@ if __name__ == '__main__':
         command = args[1].strip()
         if command == "server":
             base.update_proxy_schedule()
+    else:
+        logging.info("get random proxy is {}".format(base.get_random_proxies()))
