@@ -6,9 +6,12 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/zuoxiaolei/proxys)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/zuoxiaolei/proxys?logo=commits)](https://github.com/zuoxiaolei/proxys/commits/main)
 
-## shell usage
-```shell
-wget -O proxys.txt https://ghproxy.com/https://raw.githubusercontent.com/zuoxiaolei/proxys/main/proxys/proxys.txt
+## Installing proxys and Supported Versions
+
+proxys is available on PyPI:
+
+```console
+$ pip install -U proxys
 ```
 
 ## python usage
@@ -39,4 +42,9 @@ False
  '114.113.116.67:9091',
  '116.130.215.197:3128',
  '27.151.3.249:9002']
+```
+
+## command line usage
+```console
+$ wget -O proxys.txt https://ghproxy.com/https://raw.githubusercontent.com/zuoxiaolei/proxys/main/proxys/proxys.txt
 ```
