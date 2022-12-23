@@ -1,4 +1,12 @@
-# proxy list for human
+# Free Proxy List For Human
+
+[![Every 10 Minutes Update](https://github.com/zuoxiaolei/proxys/actions/workflows/cron.yml/badge.svg?branch=main)](https://github.com/zuoxiaolei/proxys/actions/workflows/cron.yml)
+![GitHub last commit](https://img.shields.io/github/last-commit/zuoxiaolei/proxys)
+[![caliwyr - proxy-list](https://img.shields.io/static/v1?label=zuoxiaolei&message=proxys&color=blue&logo=github)](https://github.com/zuoxiaolei/proxys "Go to GitHub repo")
+[![stars - proxy-list](https://img.shields.io/github/stars/zuoxiaolei/proxys?style=social)](https://github.com/zuoxiaolei/proxys)
+[![forks - proxy-list](https://img.shields.io/github/forks/zuoxiaolei/proxys?style=social)](https://github.com/zuoxiaolei/proxys)
+![GitHub repo size](https://img.shields.io/github/repo-size/zuoxiaolei/proxys)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/zuoxiaolei/proxys?logo=commits)](https://github.com/zuoxiaolei/proxys/commits/main)
 
 ## shell usage
 ```shell
