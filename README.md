@@ -1,4 +1,4 @@
-# python free proxy list for human, update every 10 minutes
+# proxy list for human
 
 ## shell usage
 ```shell
