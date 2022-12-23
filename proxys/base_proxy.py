@@ -62,25 +62,28 @@ class BaseCrawlerConf:
                      ]
     wait_time = 60  # update proxy pool peer 10 minutes
     max_task_num = 1000
-    github_url = "zuoxiaolei/proxys/main/proxys.txt"
+    github_url = "zuoxiaolei/proxys/main/proxys/proxys.txt"
     github_url = github_prefix + github_url
 
 
-class BaseCrawler(BaseCrawlerConf):
+class BaseProxy(BaseCrawlerConf):
 
     def __init__(self):
         self.proxy_pool = self.get_all_proxy()
         self.start_proxy_pool()
-        logging.info("get total {} http proxy".format(self.length))
+        # logging.info("get total {} http proxy".format(self.length))
 
-    def get_random_proxies(self, for_request=False):
-        proxy = self.proxy_pool[random.randint(0, len(self.proxy_pool) - 1)]
-        if for_request:
-            return {'http': proxy, 'https': proxy}
+    def get_random_proxy(self, for_request=False):
+        if self.proxy_pool:
+            proxy = self.proxy_pool[random.randint(0, len(self.proxy_pool) - 1)]
+            if for_request:
+                return {'http': proxy, 'https': proxy}
+            else:
+                return proxy
         else:
-            return proxy
+            return None
 
-    def get_useagent(self, with_cookie=True):
+    def get_useagent(self, with_cookie=False):
         headers = {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                           " (KHTML, like Gecko) Chrome/101.0.0.0 Safari/537.36",
@@ -135,10 +138,14 @@ class BaseCrawler(BaseCrawlerConf):
         return deco_fun
 
     def validate_proxy(self, proxy_item):
+        proxy_item = str(proxy_item)
         http_prefix = "http://"
         validate_center = "http://httpbin.org/ip"
         try:
-            ip, port = proxy_item.split(":")
+            sep = ":"
+            if sep not in proxy_item:
+                return False
+            ip, port = proxy_item.split(sep)
             proxy = {'http': http_prefix + proxy_item,
                      'https': http_prefix + proxy_item}
             response = requests.get(validate_center, proxies=proxy,
@@ -200,25 +207,27 @@ class BaseCrawler(BaseCrawlerConf):
         proxy_pool_thread = threading.Thread(target=self.update_proxy_pool)
         proxy_pool_thread.daemon = True
         proxy_pool_thread.start()
-        logging.info("start the proxy update thread")
+        # logging.info("start the proxy update thread")
 
     @property
     def length(self):
         return len(self.proxy_pool)
 
+    @property
     def len(self):
         return self.length
 
+    @property
     def size(self):
         return self.len
 
 
 if __name__ == '__main__':
-    base = BaseCrawler()
+    base = BaseProxy()
     args = sys.argv
     if len(args) >= 2:
         command = args[1].strip()
         if command == "server":
             base.update_proxy_schedule()
     else:
-        logging.info("get random proxy is {}".format(base.get_random_proxies()))
+        logging.info("get random proxy is {}".format(base.get_random_proxy()))
