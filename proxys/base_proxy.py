@@ -155,7 +155,7 @@ class BaseProxy(BaseCrawlerConf):
                 html = response.text
                 try:
                     json.loads(html)
-                    response = requests.get(validate_center, proxies=proxy,
+                    response = requests.get(validate_center_baidu, proxies=proxy,
                                             timeout=self.time_out, headers=self.get_useagent())
                     response.encoding = response.apparent_encoding
                     if "百度" in response.text:
