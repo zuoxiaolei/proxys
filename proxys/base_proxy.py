@@ -141,6 +141,7 @@ class BaseProxy(BaseCrawlerConf):
         proxy_item = str(proxy_item)
         http_prefix = "http://"
         validate_center = "http://httpbin.org/ip"
+        validate_center_baidu = "http://www.baidu.com/"
         try:
             sep = ":"
             if sep not in proxy_item:
@@ -154,7 +155,11 @@ class BaseProxy(BaseCrawlerConf):
                 html = response.text
                 try:
                     json.loads(html)
-                    return ip in html
+                    response = requests.get(validate_center, proxies=proxy,
+                                            timeout=self.time_out, headers=self.get_useagent())
+                    response.encoding = response.apparent_encoding
+                    if "百度" in response.text:
+                        return True
                 except ValueError:
                     return False
         except requests.exceptions.RequestException as e:
