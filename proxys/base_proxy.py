@@ -12,6 +12,7 @@ import re
 import threading
 from pathlib import Path
 from tqdm import tqdm
+import json
 
 logging.basicConfig(level=logging.INFO)
 logging_format = '%(asctime)s %(filename)s[line:%(lineno)d][func:%(funcName)s] %(levelname)s %(message)s'
@@ -151,7 +152,11 @@ class BaseProxy(BaseCrawlerConf):
                                     timeout=self.time_out, headers=self.get_useagent())
             if response.status_code == 200:
                 html = response.text
-                return ip in html
+                try:
+                    json.loads(html)
+                    return ip in html
+                except ValueError:
+                    return False
         except requests.exceptions.RequestException as e:
             return False
         return False
@@ -228,6 +233,4 @@ if __name__ == '__main__':
     else:
         logging.info("get random proxy is {}".format(base.get_random_proxy()))
         all_proxy = base.get_all_proxy()
-        while 1:
-            print(len(all_proxy))
-            time.sleep(60)
+        print(all_proxy[:3])
