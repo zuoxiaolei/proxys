@@ -69,9 +69,8 @@ class BaseCrawlerConf:
 class BaseProxy(BaseCrawlerConf):
 
     def __init__(self):
-        self.proxy_pool = self.get_all_proxy()
-        self.start_proxy_pool()
-        # logging.info("get total {} http proxy".format(self.length))
+        self.proxy_pool = self.parse_page_proxy(self.github_url)
+        self.start_update_proxy_pool_thread()
 
     def get_random_proxy(self, for_request=False):
         if self.proxy_pool:
@@ -171,7 +170,7 @@ class BaseProxy(BaseCrawlerConf):
         return ip_address_set
 
     def get_all_proxy(self):
-        return self.parse_page_proxy(self.github_url)
+        return self.proxy_pool
 
     def parse_page_proxy(self, url):
         res = self.get_url_html(url)
@@ -192,9 +191,11 @@ class BaseProxy(BaseCrawlerConf):
 
     def update_proxy_pool(self):
         while 1:
-            self.proxy_pool = self.get_all_proxy()
-            logging.debug("thread proxy_pool size: {}".format(self.length))
             time.sleep(self.wait_time)
+            proxy_pool = self.parse_page_proxy(self.github_url)
+            self.proxy_pool.clear()
+            self.proxy_pool.extend(proxy_pool)
+            logging.debug("thread proxy_pool size: {}".format(self.length))
 
     def update_proxy_schedule(self):
         proxy_pool = self.get_github_proxy()
@@ -203,23 +204,18 @@ class BaseProxy(BaseCrawlerConf):
             for line in proxy_pool:
                 fh.write(line + "\n")
 
-    def start_proxy_pool(self):
+    def start_update_proxy_pool_thread(self):
         proxy_pool_thread = threading.Thread(target=self.update_proxy_pool)
         proxy_pool_thread.daemon = True
         proxy_pool_thread.start()
-        # logging.info("start the proxy update thread")
 
     @property
     def length(self):
         return len(self.proxy_pool)
 
     @property
-    def len(self):
-        return self.length
-
-    @property
     def size(self):
-        return self.len
+        return self.length
 
 
 if __name__ == '__main__':
@@ -231,3 +227,7 @@ if __name__ == '__main__':
             base.update_proxy_schedule()
     else:
         logging.info("get random proxy is {}".format(base.get_random_proxy()))
+        all_proxy = base.get_all_proxy()
+        while 1:
+            print(len(all_proxy))
+            time.sleep(60)
