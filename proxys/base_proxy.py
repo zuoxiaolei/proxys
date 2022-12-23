@@ -146,7 +146,6 @@ class BaseProxy(BaseCrawlerConf):
             sep = ":"
             if sep not in proxy_item:
                 return False
-            ip, port = proxy_item.split(sep)
             proxy = {'http': http_prefix + proxy_item,
                      'https': http_prefix + proxy_item}
             response = requests.get(validate_center, proxies=proxy,
@@ -239,3 +238,4 @@ if __name__ == '__main__':
         logging.info("get random proxy is {}".format(base.get_random_proxy()))
         all_proxy = base.get_all_proxy()
         print(all_proxy[:3])
+        print(base.validate_proxy(all_proxy[0]))
